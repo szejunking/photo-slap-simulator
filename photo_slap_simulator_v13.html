@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Photo Slap Simulator — Prototype v0.13</title>
+<style>
+:root{color-scheme:dark;--bg:#10131b;--panel:#1b2130;--muted:#9ba7bb;--accent:#ffb14a;--line:#30394b}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% 0%,#27334b 0,#10131b 58%);font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif;color:#f5f7fb;min-height:100vh}
+main{max-width:1120px;margin:auto;padding:22px 18px 40px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}.eyebrow{color:var(--accent);font-size:11px;letter-spacing:.16em;font-weight:800;text-transform:uppercase}.top h1{font-size:clamp(24px,4vw,36px);line-height:1.1;margin:4px 0}.sub{color:var(--muted);margin:0;max-width:650px}.layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,.8fr);gap:18px}.stage-wrap,.panel{background:linear-gradient(145deg,#20283a,#171d2a);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 18px 50px #0005}.stage-head{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line);color:var(--muted);font-size:12px}.status{display:flex;align-items:center;gap:7px}.dot{width:7px;height:7px;border-radius:50%;background:#7b879a}.dot.ready{background:#63d49b;box-shadow:0 0 10px #63d49b}.stage{position:relative;min-height:570px;height:min(72vh,760px);background:radial-gradient(ellipse at 50% 30%,#39465b 0,#222c3d 45%,#141a26 100%);touch-action:none;overflow:hidden;cursor:crosshair}.stage:before{content:"";position:absolute;inset:0;background:linear-gradient(transparent 70%,#090d16aa),repeating-linear-gradient(90deg,transparent 0 59px,#ffffff06 60px);pointer-events:none}.stage canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}.hint{position:absolute;bottom:16px;left:0;right:0;text-align:center;color:#d5dceb99;font-size:12px;pointer-events:none}.placeholder{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px;color:#c7d0df;pointer-events:none}.placeholder strong{display:block;font-size:20px;margin-bottom:7px;color:white}.placeholder .symbol{font-size:54px;opacity:.8}.panel{padding:17px;display:flex;flex-direction:column;gap:15px}.panel h2{font-size:16px;margin:0}.field{display:flex;flex-direction:column;gap:7px}.field label{font-size:12px;color:#bdc7d8;font-weight:650}.upload{border:1px dashed #59677f;background:#121927;border-radius:12px;padding:15px;text-align:center;cursor:pointer}.upload:hover{border-color:var(--accent)}input[type=file]{display:none}.btn{border:0;border-radius:10px;padding:11px 14px;background:var(--accent);color:#1c1b19;font-weight:800;cursor:pointer}.btn.secondary{background:#303b50;color:#f4f6fb;border:1px solid #46536a}.btn:disabled{opacity:.45;cursor:not-allowed}.row{display:flex;gap:8px;flex-wrap:wrap}.row .btn{flex:1}.range-row{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}.range-row output{color:#fff;font-variant-numeric:tabular-nums}input[type=range]{width:100%;accent-color:var(--accent)}.meter{height:7px;background:#30394b;border-radius:20px;overflow:hidden}.meter span{display:block;height:100%;width:0;background:linear-gradient(90deg,#65d5a2,#ffb14a);transition:width .12s}.readout{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stat{background:#121927;border:1px solid #2c3548;border-radius:10px;padding:10px}.stat small{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}.stat b{font-size:18px}.note{font-size:11px;color:var(--muted);margin:0}.log{font-size:12px;color:#d2d9e5;min-height:18px}.section{border-top:1px solid var(--line);padding-top:13px;display:flex;flex-direction:column;gap:10px}.footer{color:#8793a8;font-size:11px;margin-top:16px}.kbd{border:1px solid #68758a;border-radius:5px;padding:1px 5px;font-size:10px}
+@media(max-width:800px){main{padding:15px 12px 30px}.layout{grid-template-columns:1fr}.stage{min-height:440px;height:58vh}.top{align-items:flex-start;flex-direction:column}.panel{order:2}}
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div><div class="eyebrow">Interactive prototype · v0.13 · single-thread WASM compatibility</div><h1>Photo Slap Simulator</h1><p class="sub">Upload a portrait, isolate the subject, then swipe to deliver a slap. Swipe speed controls the reaction.</p></div>
+    <div class="status"><span id="statusDot" class="dot"></span><span id="statusText">Waiting for photo</span></div>
+  </header>
+  <div id="diagnostic" style="margin:14px 0 18px;padding:12px 14px;border:1px solid #46536a;border-radius:12px;background:#121927;color:#dbe4f2;font-size:13px">
+    <b id="diagTitle">Ready for photo</b>
+    <div id="diagDetail" style="margin-top:5px;color:#aebbd0">The diagnostic steps will appear here while background removal runs.</div>
+  </div>
+  <div class="layout">
+    <section class="stage-wrap">
+      <div class="stage-head"><span>CHARACTER ARENA</span><span id="impactLabel">NO IMPACT YET</span></div>
+      <div class="stage" id="stage">
+        <canvas id="game"></canvas>
+        <div class="placeholder" id="placeholder"><div><div class="symbol">👤</div><strong>Your character appears here</strong><span>Upload a front-facing, upper-body photo to begin</span></div></div>
+        <div class="hint" id="hint">Swipe across the character to slap · faster swipe = stronger impact</div>
+      </div>
+    </section>
+    <aside class="panel">
+      <h2>Character setup</h2>
+      <label class="upload" for="photoInput"><div style="font-size:25px">＋</div><b>Choose a photo</b><div class="note">JPG, PNG or WebP · front-facing works best</div></label>
+      <input id="photoInput" type="file" accept="image/png,image/jpeg,image/webp">
+      <div class="row"><button class="btn" id="removeBtn" disabled>Remove background</button><button class="btn secondary" id="resetBtn" disabled>Reset</button></div>
+      <p class="note">Background removal runs in your browser through an AI model download. First use requires an internet connection and may take a little while.</p>
+      <div class="log" id="message">Choose a photo. Background removal starts automatically.</div>
+      <div class="section">
+        <h2>Character framing</h2>
+        <p class="note">The complete uploaded photograph is fitted inside the arena. No face crop is applied in this build.</p>
+      </div>
+      <div class="section">
+        <h2>Impact feedback</h2>
+        <div class="readout"><div class="stat"><small>Last slap</small><b id="strength">—</b></div><div class="stat"><small>Direction</small><b id="direction">—</b></div></div>
+        <div class="range-row"><span>Impact strength</span><output id="powerText">0%</output></div><div class="meter"><span id="powerMeter"></span></div>
+        <div class="row"><button class="btn secondary" id="leftBtn" disabled>← Test left</button><button class="btn secondary" id="rightBtn" disabled>Test right →</button></div>
+      </div>
+      <p class="note">Prototype note: this is a 2.5D puppet. The isolated person is framed as one sprite; facial and body separation comes in a later rigging stage.</p>
+    </aside>
+  </div>
+  <p class="footer">Local prototype · Photo processing is performed in the browser when using the background-removal feature. Avoid uploading images of people without their permission.</p>
+</main>
+<script>
+/* Compatibility shim for embedded iOS HTML viewers that expose an incomplete console. */
+(function(){
+  var c = window.console || {};
+  ['log','info','warn','debug','error','group','groupCollapsed','groupEnd','time','timeEnd','timeLog','table','trace','clear','count','countReset','assert','dir','dirxml'].forEach(function(name){
+    try {
+      if (typeof c[name] !== 'function') {
+        Object.defineProperty(c, name, {
+          configurable: true,
+          writable: true,
+          value: function(){}
+        });
+      }
+    } catch (_) {
+      try { c[name] = function(){}; } catch (__) {}
+    }
+  });
+  try { window.console = c; } catch (_) {}
+})();
+</script>
+<script type="module">
+window.addEventListener('error',e=>{
+  const title='JavaScript error';
+  const detail=(e.message||'Unknown script error')+(e.filename?' · '+e.filename.split('/').pop():'')+(e.lineno?' · line '+e.lineno:'');
+  const a=document.getElementById('diagTitle'),b=document.getElementById('diagDetail');
+  if(a)a.textContent=title;if(b)b.textContent=detail;
+  const m=document.getElementById('message');if(m)m.textContent=title+' — '+detail;
+});
+window.addEventListener('unhandledrejection',e=>{
+  const detail=e.reason?.message||String(e.reason||'Unknown rejected promise');
+  const a=document.getElementById('diagTitle'),b=document.getElementById('diagDetail');
+  if(a)a.textContent='Unhandled promise rejection';if(b)b.textContent=detail;
+  const m=document.getElementById('message');if(m)m.textContent='Unhandled promise rejection — '+detail;
+});
+const canvas=document.querySelector('#game'),ctx=canvas.getContext('2d'),stage=document.querySelector('#stage');
+const $=id=>document.getElementById(id);
+let sourceImage=null,displayImage=null,hasPhoto=false,subjectBounds=null,drag=null,raf=0,last=performance.now();
+const state={angle:0,angleV:0,bodyX:0,bodyV:0,impact:0,impactDecay:0,flash:0,hand:null,shake:0,headY:.48,headSize:.30,headX:.5};
+function resize(){const r=stage.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);draw();}
+new ResizeObserver(resize).observe(stage);resize();
+function setStatus(s,ready=false){$('statusText').textContent=s;$('statusDot').classList.toggle('ready',ready)}
+function say(s){$('message').textContent=s}
+function fitImage(img){const w=stage.clientWidth,h=stage.clientHeight;const scale=Math.min(w*.82/img.width,h*.88/img.height);return {w:img.width*scale,h:img.height*scale,x:(w-img.width*scale)/2,y:h-img.height*scale+8};}
+function draw(){
+ const w=stage.clientWidth,h=stage.clientHeight;
+ ctx.clearRect(0,0,w,h);
+ const glow=ctx.createRadialGradient(w/2,h*.78,5,w/2,h*.78,w*.48);
+ glow.addColorStop(0,'#91a7c51a');glow.addColorStop(1,'#91a7c500');
+ ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);
+ if(!displayImage)return;
+
+ // If segmentation succeeded, frame the opaque person pixels, not the
+ // original portrait canvas (which may contain large transparent margins).
+ let sx=0,sy=0,sw=displayImage.width,sh=displayImage.height;
+ if(subjectBounds){
+   ({x:sx,y:sy,w:sw,h:sh}=subjectBounds);
+ }
+ const padX=w*.07,padTop=h*.035,padBottom=h*.025;
+ // Make an isolated person large in the arena while preserving proportions.
+ const scale=Math.min((w-2*padX)/sw,(h-padTop-padBottom)/sh);
+ const dw=sw*scale,dh=sh*scale;
+ const dx=(w-dw)/2,dy=h-padBottom-dh;
+
+ // Character is rendered as one complete cutout sprite. A restrained lean
+ // and recoil keep the image coherent until facial/body rigging is added.
+ ctx.save();
+ ctx.translate(w/2+state.bodyX,dy+dh*.50);
+ ctx.rotate(state.angle*.34);
+ const squash=1-Math.min(.025,Math.abs(state.angle)*.012);
+ ctx.scale(1+Math.min(.025,Math.abs(state.angle)*.012),squash);
+ ctx.drawImage(displayImage,sx,sy,sw,sh,-dw/2,-dh*.50,dw,dh);
+ ctx.restore();
+
+ if(state.flash>0){
+   ctx.save();ctx.globalAlpha=state.flash*.18;
+   ctx.fillStyle='#fff4c7';ctx.fillRect(0,0,w,h);ctx.restore();
+ }
+ if(state.hand){
+   ctx.save();ctx.globalAlpha=.9;ctx.font='42px system-ui';
+   ctx.fillText('🖐️',state.hand.x-20,state.hand.y+15);ctx.restore();
+ }
+}
+function loop(now){const dt=Math.min(.032,(now-last)/1000);last=now;
+ // spring-damper recovery, with inertia and progressively damped oscillation
+ const stiffness=30,damping=8.5;
+ state.angleV+=(-stiffness*state.angle-damping*state.angleV)*dt;state.angle+=state.angleV*dt;
+ state.bodyV+=(-24*state.bodyX-9*state.bodyV)*dt;state.bodyX+=state.bodyV*dt;
+ state.flash=Math.max(0,state.flash-dt*4.8);state.shake=Math.max(0,state.shake-dt*3);
+ if(state.hand&&state.hand.fade!==undefined){state.hand.fade-=dt;if(state.hand.fade<=0)state.hand=null;}
+ draw();raf=requestAnimationFrame(loop);
+}raf=requestAnimationFrame(loop);
+function slap(side,power){
+ if(!displayImage)return;
+ power=Math.max(.12,Math.min(1,power));const sign=side==='left'?1:-1;
+ // Rotation impulse and torso recoil. Side describes where the swipe lands.
+ state.angleV+=sign*(1.9+power*5.8);state.bodyV+=-sign*(16+power*34);
+ state.flash=.95;state.shake=.35;state.impact=power;
+ $('strength').textContent=power>.72?'HARD':power>.4?'MEDIUM':'LIGHT';
+ $('direction').textContent=side.toUpperCase();$('impactLabel').textContent=`${side.toUpperCase()} IMPACT`;
+ $('powerText').textContent=Math.round(power*100)+'%';$('powerMeter').style.width=(power*100)+'%';
+ $('hint').textContent=power>.72?'WHAM! Big hit!':power>.4?'SMACK!':'PAK!';
+ state.hand={x:side==='left'?stage.clientWidth*.28:stage.clientWidth*.72,y:stage.clientHeight*.46,fade:.22};
+}
+function point(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top,t:performance.now()}}
+canvas.addEventListener('pointerdown',e=>{if(!displayImage)return;canvas.setPointerCapture(e.pointerId);drag={start:point(e),last:point(e)};state.hand={...drag.start,fade:10};});
+canvas.addEventListener('pointermove',e=>{if(!drag)return;drag.last=point(e);state.hand={...drag.last,fade:10};});
+canvas.addEventListener('pointerup',e=>{if(!drag)return;const end=point(e),start=drag.start,dx=end.x-start.x,dy=end.y-start.y,dist=Math.hypot(dx,dy),elapsed=Math.max(45,end.t-start.t),speed=dist/elapsed;const power=Math.max(.12,Math.min(1,(speed-.15)*1.45));const side=(start.x+end.x)/2<stage.clientWidth/2?'left':'right';drag=null;state.hand=null;if(dist>22)slap(side,power);});
+canvas.addEventListener('pointercancel',()=>{drag=null;state.hand=null});
+$('leftBtn').onclick=()=>slap('left',.58);$('rightBtn').onclick=()=>slap('right',.58);
+$('resetBtn').onclick=()=>{state.angle=state.angleV=state.bodyX=state.bodyV=0;$('strength').textContent='—';$('direction').textContent='—';$('powerText').textContent='0%';$('powerMeter').style.width='0%';$('impactLabel').textContent='NO IMPACT YET';$('hint').textContent='Swipe across the character to slap · faster swipe = stronger impact';};
+function updateAlignment(){state.headY=+$('headY').value/100;state.headSize=+$('headSize').value/100;state.headX=+$('headX').value/100;$('headYOut').textContent=$('headY').value+'%';$('headSizeOut').textContent=$('headSize').value+'%';$('headXOut').textContent=$('headX').value+'%';draw();}
+// No manual face-crop controls in this stable whole-photo build.
+let removalRunning=false;
+function diagnostic(title,detail){
+  $('diagTitle').textContent=title;
+  $('diagDetail').textContent=detail;
+  say(title+' — '+detail);
+}
+function withTimeout(promise,ms,label){
+  return Promise.race([
+    promise,
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error(label+' timed out after '+Math.round(ms/1000)+' seconds.')),ms))
+  ]);
+}
+async function removePhotoBackground(){
+ diagnostic('Starting background removal','The background-removal function has started.');
+ if(!sourceImage){diagnostic('Waiting for photo','No source image is available yet.');return;}
+ if(removalRunning){diagnostic('Already running','A background-removal attempt is already in progress.');return;}
+ removalRunning=true;
+ const btn=$('removeBtn');btn.disabled=true;setStatus('Checking browser…');
+ try{
+   diagnostic('Step 1 of 4 · Checking browser','Checking module and WebAssembly support…');
+   const supportsWasm=typeof WebAssembly==='object';
+   const supportsModule=typeof HTMLScriptElement!=='undefined' && 'noModule' in HTMLScriptElement.prototype;
+   diagnostic('Step 2 of 4 · Preparing single-thread mode',`WebAssembly: ${supportsWasm?'available':'not available'} · ES modules: ${supportsModule?'available':'not detected'}. Limiting the engine to one CPU thread for embedded-viewer compatibility…`);
+   // IMG.LY's ONNX capability helper reads navigator.hardwareConcurrency
+   // to choose WASM threads. A single thread avoids SharedArrayBuffer /
+   // crossOriginIsolated requirements in local embedded HTML viewers.
+   try {
+     Object.defineProperty(navigator,'hardwareConcurrency',{configurable:true,get:()=>1});
+   } catch (_) {
+     try { navigator.hardwareConcurrency = 1; } catch (__) {}
+   }
+   diagnostic('Step 2 of 4 · Loading AI engine','CPU threads limited to 1. Importing the engine from jsDelivr…');
+   const importPromise=import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/+esm');
+   const module=await withTimeout(importPromise,30000,'AI engine download/import');
+   const removeBackground=module.default || module.removeBackground;
+   if(typeof removeBackground!=='function'){
+     throw new Error('The module downloaded, but its removeBackground function was not found.');
+   }
+   diagnostic('Step 3 of 4 · Starting AI model','The engine loaded. Preparing the photo and downloading/initialising model files. This can take a few minutes on first use.');
+   const blob=await fetch(sourceImage.src).then(r=>{
+     if(!r.ok)throw new Error('Could not read the uploaded photo.');
+     return r.blob();
+   });
+   const processPromise=removeBackground(blob,{
+     debug:false,
+     // Pin the model/WASM asset location explicitly instead of relying on
+     // the package's inferred default path in this embedded HTML viewer.
+     publicPath:'https://staticimgly.com/@imgly/background-removal-data/1.5.5/dist/',
+     // Use CPU/WASM directly and avoid worker proxying in restrictive WKWebView shells.
+     device:'cpu',
+     proxyToWorker:false,
+     progress:(key,current,total)=>{
+       if(total){
+         const pct=Math.round(current/total*100);
+         diagnostic('Step 3 of 4 · AI model progress',`${key}: ${pct}%`);
+       } else {
+         diagnostic('Step 3 of 4 · AI model progress',String(key));
+       }
+     }
+   });
+   const result=await withTimeout(processPromise,180000,'AI model initialisation/background removal');
+   diagnostic('Step 4 of 4 · Preparing character','Background removed. Framing the isolated subject…');
+   const url=URL.createObjectURL(result),img=new Image();
+   img.onload=()=>{
+     displayImage=img;
+     const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;
+     const cctx=c.getContext('2d',{willReadFrequently:true});cctx.drawImage(img,0,0);
+     const pixels=cctx.getImageData(0,0,c.width,c.height).data;
+     let minX=c.width,minY=c.height,maxX=-1,maxY=-1;
+     for(let y=0;y<c.height;y+=2){for(let x=0;x<c.width;x+=2){
+       if(pixels[(y*c.width+x)*4+3]>24){if(x<minX)minX=x;if(y<minY)minY=y;if(x>maxX)maxX=x;if(y>maxY)maxY=y;}
+     }}
+     subjectBounds=maxX>=minX?{x:minX,y:minY,w:maxX-minX+1,h:maxY-minY+1}:null;
+     setStatus('Person isolated',true);
+     diagnostic('Success · Person isolated','Background removal completed. Swipe across the character to test the slap reaction.');
+     btn.disabled=false;btn.textContent='Remove again';removalRunning=false;draw();
+   };
+   img.onerror=()=>{
+     setStatus('Image display failed');
+     diagnostic('Image display failed','The AI returned an image, but this viewer could not display the result.');
+     btn.disabled=false;removalRunning=false;
+   };
+   img.src=url;
+ }catch(err){
+   try{window.__lastBackgroundRemovalError=err?.stack||err?.message||String(err);}catch(_){}
+   setStatus('Background removal failed');
+   diagnostic('Stopped · '+(err && err.message ? err.message : String(err)),
+     'The original photo is still available. If this reports an import timeout, try opening the HTML in Safari; if it reports an AI/model timeout, this viewer may not support the required worker/WASM processing.');
+   btn.disabled=false;removalRunning=false;
+ }
+}
+$('photoInput').addEventListener('change',e=>{
+ const f=e.target.files?.[0];if(!f)return;
+ if(!f.type.startsWith('image/')){say('Please choose an image file.');return;}
+ const url=URL.createObjectURL(f),img=new Image();
+ img.onload=()=>{
+   sourceImage=img;displayImage=img;subjectBounds=null;hasPhoto=true;
+   $('placeholder').style.display='none';$('removeBtn').disabled=false;
+   $('removeBtn').textContent='Remove background';$('resetBtn').disabled=false;
+   $('leftBtn').disabled=false;$('rightBtn').disabled=false;
+   setStatus('Photo loaded',true);say('Photo loaded. Starting background removal…');diagnostic('Photo loaded','Preparing to start background removal…');draw();
+   setTimeout(()=>{removePhotoBackground().catch(err=>{
+     diagnostic('Startup failure',err?.message||String(err));
+     $('removeBtn').disabled=false;removalRunning=false;
+   });},300);
+ };
+ img.onerror=()=>say('Could not read that image.');
+ img.src=url;
+});
+$('removeBtn').addEventListener('click',removePhotoBackground);
+</script>
+</body>
+</html>
